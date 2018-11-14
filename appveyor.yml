@@ -17,33 +17,31 @@ install:
   # Install vcpackages for dependencies
   - vcpkg install zlib:%PLATFORM%-windows
   - vcpkg install openssl:%PLATFORM%-windows
-  - cd %APPVEYOR_BUILD_FOLDER%
-  # Temporarily installing cmocka from source
-  - git clone git://git.cryptomilk.org/projects/cmocka.git -b cmocka-1.1.3 --depth=1
-  - cd cmocka
-  - mkdir build
-  - cd build
-  - cmake
-    -G "Visual Studio 15 2017"
-    -A "%PLATFORM%"
-    -DCMAKE_BUILD_TYPE=%CONFIGURATION%
-    -DCMAKE_INSTALL_PREFIX="c:/vcpkg/installed"
-    ..
-  # -DCMAKE_TOOLCHAIN_FILE="c:/tools/vcpkg/scripts/buildsystems/vcpkg.cmake"
-  - dir
-  - echo running msbuild cmocka.sln /p:Configuration="%CONFIGURATION%" /p:Platform="%PLATFORM%""
-  - msbuild cmocka.sln /p:Configuration="%CONFIGURATION%" /p:Platform="%PLATFORM%"
+  # Using local vcpkg port of cmocka
+  - xcopy %APPVEYOR_BUILD_FOLDER%\vcpkg\cmocka ports\cmocka /E /I
+  - vcpkg install cmocka:%PLATFORM%-windows
   - cd %APPVEYOR_BUILD_FOLDER%
 
 build_script:
+  - ps: >-
+      If ($env:Platform -Match "x86") {
+        #$env:VCVARS_PLATFORM="x86"
+        #$env:ENV_PLATFORM="x86"
+        "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars32.bat"
+      } Else {
+        #$env:VCVARS_PLATFORM="amd64"
+        #$env:ENV_PLATFORM="x64"
+        "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
+      }
   - git clone git://git.libssh.org/projects/libssh.git -b master --depth=1
   - cd libssh\obj
   - cmake
-    -DCMAKE_TOOLCHAIN_FILE="c:/tools/vcpkg/scripts/buildsystems/vcpkg.cmake"
     -DUNIT_TESTING=ON -DWITH_SFTP=ON -DWITH_SERVER=ON -DWITH_ZLIB=ON
     -DWITH_PCAP=ON ..
+  #  -DCMAKE_TOOLCHAIN_FILE="c:/tools/vcpkg/scripts/buildsystems/vcpkg.cmake"
   - dir
-  - msbuild libssh.sln /p:Configuration="%CONFIGURATION%" /p:Platform="%PLATFORM%"
+#  - msbuild libssh.sln /p:Configuration="%CONFIGURATION%" /p:Platform="%PLATFORM%"
+  - msbuild libssh.sln
   - ctest --output-on-failure
 
 cache:
