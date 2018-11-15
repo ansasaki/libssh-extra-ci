@@ -11,37 +11,35 @@ configuration:
   - Debug
 
 install:
+  - ps: >-
+      If ($env:Platform -Match "x86") {
+        $env:VCPKG_DEFAULT_TRIPLET="x86-windows"
+        $env:CMAKE_ARCH_FLAG=""
+      } Else {
+        $env:VCPKG_DEFAULT_TRIPLET="x64-windows"
+        $env:CMAKE_ARCH_FLAG="-A x64"
+      }
   - cd C:\Tools\vcpkg
   - git pull
   - .\bootstrap-vcpkg.bat
-  # Install vcpackages for dependencies
-  - vcpkg install zlib:%PLATFORM%-windows
-  - vcpkg install openssl:%PLATFORM%-windows
+  # Install dependencies
+  - vcpkg install zlib
+  - vcpkg install openssl
   # Using local vcpkg port of cmocka
   - xcopy %APPVEYOR_BUILD_FOLDER%\vcpkg\cmocka ports\cmocka /E /I
-  - vcpkg install cmocka:%PLATFORM%-windows
+  - vcpkg install cmocka
+  - vcpkg integrate install
   - cd %APPVEYOR_BUILD_FOLDER%
 
 build_script:
-  - ps: >-
-      If ($env:Platform -Match "x86") {
-        #$env:VCVARS_PLATFORM="x86"
-        #$env:ENV_PLATFORM="x86"
-        "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars32.bat"
-      } Else {
-        #$env:VCVARS_PLATFORM="amd64"
-        #$env:ENV_PLATFORM="x64"
-        "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
-      }
   - git clone git://git.libssh.org/projects/libssh.git -b master --depth=1
   - cd libssh\obj
-  - cmake
+  - cmake %CMAKE_ARCH_FLAG%
+    -DCMAKE_TOOLCHAIN_FILE="c:/tools/vcpkg/scripts/buildsystems/vcpkg.cmake"
     -DUNIT_TESTING=ON -DWITH_SFTP=ON -DWITH_SERVER=ON -DWITH_ZLIB=ON
     -DWITH_PCAP=ON ..
-  #  -DCMAKE_TOOLCHAIN_FILE="c:/tools/vcpkg/scripts/buildsystems/vcpkg.cmake"
   - dir
-#  - msbuild libssh.sln /p:Configuration="%CONFIGURATION%" /p:Platform="%PLATFORM%"
-  - msbuild libssh.sln
+  - cmake --build .
   - ctest --output-on-failure
 
 cache:
